@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formula Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; background-color: #f4f4f9; }
+        .calculator { max-width: 400px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .result { margin-top: 20px; padding: 10px; background: #e2f0d9; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="calculator">
+    <h2>Formula Calculator</h2>
+    <p>Formula: <code>((X - Y) / X) * Amount</code></p>
+    
+    <div class="input-group">
+        <label for="xValue">Value of X:</label>
+        <input type="number" id="xValue" oninput="calculate()">
+    </div>
+    <div class="input-group">
+        <label for="yValue">Value of Y:</label>
+        <input type="number" id="yValue" oninput="calculate()">
+    </div>
+    <div class="input-group">
+        <label for="amount">Amount:</label>
+        <input type="number" id="amount" oninput="calculate()">
+    </div>
+
+    <div class="result">
+        Result: <span id="output">0</span>
+    </div>
+</div>
+
+<script>
+function calculate() {
+    const x = parseFloat(document.getElementById('xValue').value);
+    const y = parseFloat(document.getElementById('yValue').value);
+    const amount = parseFloat(document.getElementById('amount').value);
+
+    if (!isNaN(x) && !isNaN(y) && !isNaN(amount) && y !== 0) {
+        const result = ((x - y) / x) * amount;
+        document.getElementById('output').innerText = result.toFixed(2);
+    } else if (y === 0) {
+        document.getElementById('output').innerText = "Y cannot be zero";
+    } else {
+        document.getElementById('output').innerText = "0";
+    }
+}
+</script>
+
+</body>
+</html>
