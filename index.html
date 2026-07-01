@@ -12,22 +12,28 @@
         input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         input[readonly] { background-color: #e9ecef; color: #495057; cursor: not-allowed; }
         .status-msg { font-size: 0.85em; color: #666; margin-top: -10px; margin-bottom: 15px; }
+        .source-tag { font-size: 0.75em; font-weight: bold; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+        .source-google { background: #e8f0fe; color: #1a73e8; }
+        .source-fallback { background: #fff3cd; color: #856404; }
         .result-box { margin-top: 20px; padding: 15px; background: #e2f0d9; border-radius: 4px; }
         .result-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .result-row:last-child { margin-bottom: 0; }
         .total { font-weight: bold; border-bottom: 1px dashed #777; padding-bottom: 5px; margin-bottom: 8px; }
+        button.refresh-btn { margin-top: 8px; padding: 6px 12px; border: 1px solid #1a73e8; background: white; color: #1a73e8; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+        button.refresh-btn:hover { background: #e8f0fe; }
     </style>
 </head>
 <body>
 
 <div class="calculator">
     <h2>Live Formula Calculator</h2>
-    <p>Formula: <code>((X - Y) / X) * Amount</code></p>
-    
+    <p>Formula: <code>((X - Y) / Y) * Amount</code></p>
+
     <div class="input-group">
-        <label for="xValue">Value of X (Live INR to IDR Rate):</label>
+        <label for="xValue">Value of X (Live INR to IDR Rate): <span id="sourceTag"></span></label>
         <input type="number" id="xValue" readonly placeholder="Fetching live rate...">
         <div id="status" class="status-msg">Connecting to live exchange data...</div>
+        <button class="refresh-btn" onclick="fetchLiveRate()">Refresh rate</button>
     </div>
     <div class="input-group">
         <label for="yValue">Value of Y:</label>
@@ -55,32 +61,81 @@
 </div>
 
 <script>
-// Automatically fetch live conversion rate on page load
-window.addEventListener('DOMContentLoaded', (event) => {
+window.addEventListener('DOMContentLoaded', () => {
     fetchLiveRate();
 });
 
-function fetchLiveRate() {
-    // Using a reliable open-source exchange rate API endpoint
-    fetch('https://open.er-api.com/v6/latest/INR')
-        .then(response => response.json())
-        .then(data => {
-            if (data && data.rates && data.rates.IDR) {
-                const idrRate = data.rates.IDR;
-                document.getElementById('xValue').value = idrRate;
-                document.getElementById('status').innerText = "Live rate updated successfully.";
-                document.getElementById('status').style.color = "green";
-                calculate(); // Trigger an initial calculation in case Y and Amount are pre-filled
-            } else {
-                throw new Error("Invalid rate data structure");
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching exchange rate:', error);
-            document.getElementById('status').innerText = "Failed to load live rate. Please enter manually.";
-            document.getElementById('status').style.color = "red";
-            document.getElementById('xValue').removeAttribute('readonly'); // fallback to manual edit if API fails
-        });
+function setStatus(msg, color) {
+    const s = document.getElementById('status');
+    s.innerText = msg;
+    s.style.color = color;
+}
+
+function setSourceTag(label, cls) {
+    const tag = document.getElementById('sourceTag');
+    tag.innerText = label;
+    tag.className = 'source-tag ' + cls;
+}
+
+async function fetchLiveRate() {
+    setStatus('Connecting to live exchange data...', '#666');
+    setSourceTag('', '');
+    document.getElementById('xValue').setAttribute('readonly', true);
+
+    // 1) Try Google Finance quote page (scraped via a public CORS proxy, since
+    //    Google does not expose an official free exchange-rate API).
+    try {
+        const rate = await fetchFromGoogleFinance();
+        if (rate && !isNaN(rate) && rate > 0) {
+            document.getElementById('xValue').value = rate;
+            setStatus('Live rate updated from Google Finance.', 'green');
+            setSourceTag('Google Finance', 'source-google');
+            calculate();
+            return;
+        }
+        throw new Error('Google Finance parse failed');
+    } catch (err) {
+        console.warn('Google Finance fetch failed, falling back:', err);
+    }
+
+    // 2) Fallback to open.er-api.com
+    try {
+        const response = await fetch('https://open.er-api.com/v6/latest/INR');
+        const data = await response.json();
+        if (data && data.rates && data.rates.IDR) {
+            document.getElementById('xValue').value = data.rates.IDR;
+            setStatus('Google Finance unavailable — using fallback rate source.', '#856404');
+            setSourceTag('Fallback API', 'source-fallback');
+            calculate();
+            return;
+        }
+        throw new Error('Invalid rate data structure');
+    } catch (error) {
+        console.error('Error fetching exchange rate:', error);
+        setStatus('Both sources failed. Please enter the rate manually.', 'red');
+        setSourceTag('Manual entry', 'source-fallback');
+        document.getElementById('xValue').removeAttribute('readonly');
+    }
+}
+
+async function fetchFromGoogleFinance() {
+    // Google Finance has no official API. This scrapes the public quote page
+    // through a CORS proxy and parses the rate out of the HTML. This is
+    // inherently fragile: it depends on Google's page markup and on the
+    // proxy's availability, and can break without notice.
+    const targetUrl = 'https://www.google.com/finance/quote/INR-IDR';
+    const proxyUrl = 'https://corsproxy.io/?url=' + encodeURIComponent(targetUrl);
+
+    const response = await fetch(proxyUrl);
+    if (!response.ok) throw new Error('Proxy request failed: ' + response.status);
+    const html = await response.text();
+
+    // Google Finance renders the price inside an element with class "YMlKec fxKbKc"
+    const match = html.match(/class="YMlKec fxKbKc">([\d.,]+)</);
+    if (!match) throw new Error('Rate element not found in page');
+
+    const rateStr = match[1].replace(/,/g, '');
+    return parseFloat(rateStr);
 }
 
 function calculate() {
@@ -93,8 +148,8 @@ function calculate() {
     const sShareEl = document.getElementById('sShare');
 
     if (!isNaN(x) && !isNaN(y) && !isNaN(amount) && y !== 0) {
-        const result = ((x - y) / x) * amount;
-        
+        const result = ((x - y) / y) * amount;
+
         const aShare = result * 0.60;
         const sShare = result * 0.40;
 
