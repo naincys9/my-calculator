@@ -10,7 +10,10 @@
         .input-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .result { margin-top: 20px; padding: 10px; background: #e2f0d9; border-radius: 4px; font-weight: bold; }
+        .result-box { margin-top: 20px; padding: 15px; background: #e2f0d9; border-radius: 4px; }
+        .result-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .result-row:last-child { margin-bottom: 0; }
+        .total { font-weight: bold; border-bottom: 1px dashed #777; padding-bottom: 5px; margin-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -32,8 +35,19 @@
         <input type="number" id="amount" oninput="calculate()">
     </div>
 
-    <div class="result">
-        Result: <span id="output">0</span>
+    <div class="result-box">
+        <div class="result-row total">
+            <span>Total Result:</span>
+            <span id="output">0</span>
+        </div>
+        <div class="result-row">
+            <span>A Share (60%):</span>
+            <span id="aShare">0</span>
+        </div>
+        <div class="result-row">
+            <span>S Share (40%):</span>
+            <span id="sShare">0</span>
+        </div>
     </div>
 </div>
 
@@ -43,13 +57,29 @@ function calculate() {
     const y = parseFloat(document.getElementById('yValue').value);
     const amount = parseFloat(document.getElementById('amount').value);
 
+    const outputEl = document.getElementById('output');
+    const aShareEl = document.getElementById('aShare');
+    const sShareEl = document.getElementById('sShare');
+
     if (!isNaN(x) && !isNaN(y) && !isNaN(amount) && y !== 0) {
         const result = ((x - y) / x) * amount;
-        document.getElementById('output').innerText = result.toFixed(2);
+        
+        // Calculate the splits
+        const aShare = result * 0.60;
+        const sShare = result * 0.40;
+
+        // Display results rounded to 2 decimal places
+        outputEl.innerText = result.toFixed(2);
+        aShareEl.innerText = aShare.toFixed(2);
+        sShareEl.innerText = sShare.toFixed(2);
     } else if (y === 0) {
-        document.getElementById('output').innerText = "Y cannot be zero";
+        outputEl.innerText = "Y cannot be zero";
+        aShareEl.innerText = "0";
+        sShareEl.innerText = "0";
     } else {
-        document.getElementById('output').innerText = "0";
+        outputEl.innerText = "0";
+        aShareEl.innerText = "0";
+        sShareEl.innerText = "0";
     }
 }
 </script>
