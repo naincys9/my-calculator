@@ -20,7 +20,7 @@
 
 <div class="calculator">
     <h2>Formula Calculator</h2>
-    <p>Formula: <code>((X - Y) / Y) * Amount</code></p>
+    <p>Formula: <code>((X - Y) / X) * Amount</code></p>
     
     <div class="input-group">
         <label for="xValue">Value of X:</label>
@@ -62,7 +62,7 @@ function calculate() {
     const sShareEl = document.getElementById('sShare');
 
     if (!isNaN(x) && !isNaN(y) && !isNaN(amount) && y !== 0) {
-        const result = ((x - y) / y) * amount;
+        const result = ((x - y) / x) * amount;
         
         // Calculate the splits
         const aShare = result * 0.60;
